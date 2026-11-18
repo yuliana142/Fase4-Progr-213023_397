@@ -310,4 +310,688 @@ También se desarrollará el manejo avanzado de excepciones solicitado en la gu�
 
 El objetivo es garantizar que la aplicación continúe funcionando incluso cuando ocurran
 errores durante su ejecución.
+""" 
+
 """
+=========================================================
+SOFTWARE FJ
+BLOQUE 3 - GESTION DE RESERVAS Y CONTROL DE ERRORES
+INTEGRANTE 3
+=========================================================
+
+Este módulo administra las reservas y controla los errores
+del sistema mediante excepciones personalizadas y logs.
+
+No utiliza bases de datos ni librerías externas.
+"""
+import logging
+
+
+# =========================================================
+# 1. CONFIGURACION DE LOGS
+# =========================================================
+
+logging.basicConfig(
+    filename="logs.txt",
+    level=logging.INFO,
+    format="%(asctime)s | %(levelname)s | %(message)s",
+    encoding="utf-8"
+)
+
+
+def registrar_evento(mensaje):
+    logging.info(mensaje)
+
+
+def registrar_error(mensaje):
+    logging.exception(mensaje)
+
+
+# =========================================================
+# 2. EXCEPCIONES PERSONALIZADAS
+# =========================================================
+
+class ErrorSoftwareFJ(Exception):
+    pass
+
+
+class DatosInvalidosError(ErrorSoftwareFJ):
+    pass
+
+
+class RegistroDuplicadoError(ErrorSoftwareFJ):
+    pass
+
+
+class RegistroNoEncontradoError(ErrorSoftwareFJ):
+    pass
+
+
+class ServicioNoDisponibleError(ErrorSoftwareFJ):
+    pass
+
+
+class ReservaInvalidaError(ErrorSoftwareFJ):
+    pass
+
+
+class OperacionNoPermitidaError(ErrorSoftwareFJ):
+    pass
+
+
+# =========================================================
+# 3. FUNCIONES DE COMPATIBILIDAD CON OTROS MODULOS
+# =========================================================
+
+def obtener_id(objeto):
+    identificador = getattr(objeto, "id", None)
+
+    if identificador is None:
+        identificador = getattr(objeto, "identificador", None)
+
+    if identificador is None:
+        raise DatosInvalidosError("El objeto no tiene identificador.")
+
+    return str(identificador).strip()
+
+
+def validar_servicio(servicio, detalle):
+
+    if hasattr(servicio, "validar"):
+        servicio.validar(detalle)
+
+    elif hasattr(servicio, "validar_parametros"):
+
+        if isinstance(detalle, dict):
+            parametros = detalle
+
+        elif hasattr(servicio, "capacidad"):
+            parametros = {"personas": detalle}
+
+        elif hasattr(servicio, "existencias") or hasattr(servicio, "cantidad"):
+            parametros = {"cantidad": detalle}
+
+        else:
+            parametros = {"tema": str(detalle)}
+
+        servicio.validar_parametros(parametros)
+
+    else:
+        raise DatosInvalidosError(
+            "El servicio no tiene un método de validación."
+        )
+
+
+# =========================================================
+# 4. CLASE RESERVA
+# =========================================================
+
+class Reserva:
+
+    def __init__(self, identificador, cliente, servicio, horas, detalle):
+
+        try:
+            if not identificador:
+                raise DatosInvalidosError(
+                    "El identificador es obligatorio."
+                )
+
+            if cliente is None or servicio is None:
+                raise DatosInvalidosError(
+                    "Debe seleccionar un cliente y un servicio."
+                )
+
+            self.id = str(identificador).strip()
+            self.horas = float(horas)
+
+            if self.horas <= 0:
+                raise ReservaInvalidaError(
+                    "La duración debe ser mayor que cero."
+                )
+
+            validar_servicio(servicio, detalle)
+
+            self.cliente = cliente
+            self.servicio = servicio
+            self.estado = "Pendiente"
+            self.costo = None
+
+            registrar_evento(
+                f"Reserva {self.id} creada correctamente."
+            )
+
+        except (ValueError, TypeError) as error:
+            registrar_error("Error en los datos de la reserva.")
+
+            raise ReservaInvalidaError(
+                "No se pudo crear la reserva."
+            ) from error
+
+        except ErrorSoftwareFJ:
+            registrar_error("Error controlado al crear reserva.")
+            raise
+
+    # -----------------------------------------------------
+    # CONFIRMAR RESERVA
+    # -----------------------------------------------------
+
+    def confirmar(self):
+
+        if self.estado != "Pendiente":
+            raise ReservaInvalidaError(
+                "Solo se pueden confirmar reservas pendientes."
+            )
+
+        if not getattr(self.servicio, "disponible", True):
+            raise ServicioNoDisponibleError(
+                "El servicio no está disponible."
+            )
+
+        self.estado = "Confirmada"
+
+        registrar_evento(
+            f"Reserva {self.id} confirmada."
+        )
+
+        return "Reserva confirmada correctamente."
+
+    # -----------------------------------------------------
+    # CANCELAR RESERVA
+    # -----------------------------------------------------
+
+    def cancelar(self):
+
+        if self.estado in ("Cancelada", "Procesada"):
+            raise OperacionNoPermitidaError(
+                "No se puede cancelar esta reserva."
+            )
+
+        self.estado = "Cancelada"
+
+        registrar_evento(
+            f"Reserva {self.id} cancelada."
+        )
+
+        return "Reserva cancelada correctamente."
+
+    # -----------------------------------------------------
+    # PROCESAR RESERVA Y CALCULAR COSTO
+    # -----------------------------------------------------
+
+    def procesar(self, impuesto=0.19, descuento=0):
+
+        if self.estado != "Confirmada":
+            raise ReservaInvalidaError(
+                "Primero debe confirmar la reserva."
+            )
+
+        try:
+
+            self.costo = self.servicio.calcular_costo(
+                self.horas, impuesto, descuento
+            )
+
+            self.estado = "Procesada"
+
+        except (ValueError, TypeError) as error:
+
+            registrar_error("Error durante el cálculo del costo.")
+
+            raise ReservaInvalidaError(
+                "No fue posible calcular el costo."
+            ) from error
+
+        except ErrorSoftwareFJ:
+
+            registrar_error("Error al procesar la reserva.")
+            raise
+
+        else:
+
+            registrar_evento(
+                f"Reserva {self.id} procesada. Total: {self.costo}"
+            )
+
+            return self.costo
+
+        finally:
+
+            registrar_evento(
+                f"Finalizó el procesamiento de la reserva {self.id}."
+            )
+
+    # -----------------------------------------------------
+    # DESCRIPCION DE RESERVA
+    # -----------------------------------------------------
+
+    def describir(self):
+
+        nombre_cliente = getattr(
+            self.cliente, "nombre", "Sin nombre"
+        )
+
+        nombre_servicio = getattr(
+            self.servicio, "nombre", "Sin servicio"
+        )
+
+        return (
+            f"Reserva: {self.id} | "
+            f"Cliente: {nombre_cliente} | "
+            f"Servicio: {nombre_servicio} | "
+            f"Horas: {self.horas} | "
+            f"Estado: {self.estado} | "
+            f"Costo: {self.costo}"
+        )
+
+
+# =========================================================
+# 5. ADMINISTRADOR DE RESERVAS
+# =========================================================
+
+class SistemaSoftwareFJ:
+
+    def __init__(self):
+
+        self.clientes = []
+        self.servicios = []
+        self.reservas = []
+
+    def registrar_cliente(self, cliente):
+
+        self._registrar(
+            self.clientes, cliente, "cliente"
+        )
+
+    def registrar_servicio(self, servicio):
+
+        self._registrar(
+            self.servicios, servicio, "servicio"
+        )
+
+    def _registrar(self, lista, objeto, tipo):
+
+        identificador = obtener_id(objeto)
+
+        if any(obtener_id(x) == identificador for x in lista):
+
+            raise RegistroDuplicadoError(
+                f"El {tipo} ya está registrado."
+            )
+
+        lista.append(objeto)
+
+        registrar_evento(
+            f"{tipo.capitalize()} registrado: {identificador}"
+        )
+
+    def buscar(self, lista, identificador):
+
+        for objeto in lista:
+
+            if obtener_id(objeto) == str(identificador).strip():
+                return objeto
+
+        registrar_evento(
+            f"Registro no encontrado: {identificador}"
+        )
+
+        raise RegistroNoEncontradoError(
+            "No se encontró el registro solicitado."
+        )
+
+    # -----------------------------------------------------
+    # CREAR RESERVA
+    # -----------------------------------------------------
+
+    def crear_reserva(
+        self,
+        id_reserva,
+        id_cliente,
+        id_servicio,
+        horas,
+        detalle
+    ):
+
+        try:
+
+            if any(
+                obtener_id(r) == str(id_reserva).strip()
+                for r in self.reservas
+            ):
+
+                raise RegistroDuplicadoError(
+                    "La reserva ya existe."
+                )
+
+            cliente = self.buscar(
+                self.clientes, id_cliente
+            )
+
+            servicio = self.buscar(
+                self.servicios, id_servicio
+            )
+
+            reserva = Reserva(
+                id_reserva,
+                cliente,
+                servicio,
+                horas,
+                detalle
+            )
+
+        except ErrorSoftwareFJ:
+
+            registrar_error("Error al crear una reserva.")
+            raise
+
+        else:
+
+            self.reservas.append(reserva)
+
+            registrar_evento(
+                f"Reserva agregada al sistema: {id_reserva}"
+            )
+
+            return reserva
+
+        finally:
+
+            registrar_evento(
+                f"Finalizó intento de creación de reserva: {id_reserva}"
+            )
+
+    # -----------------------------------------------------
+    # BUSCAR RESERVA
+    # -----------------------------------------------------
+
+    def buscar_reserva(self, identificador):
+
+        return self.buscar(
+            self.reservas, identificador
+        )
+
+
+# =========================================================
+# 6. OBJETOS DE PRUEBA
+# =========================================================
+
+# Estos objetos permiten probar este bloque sin modificar
+# las clases Cliente y Servicio de los otros integrantes.
+
+class ClientePrueba:
+
+    def __init__(self, identificador, nombre):
+
+        self.id = identificador
+        self.nombre = nombre
+
+
+class ServicioPrueba:
+
+    def __init__(self, identificador, nombre, tarifa, capacidad):
+
+        self.id = identificador
+        self.nombre = nombre
+        self.tarifa = float(tarifa)
+        self.capacidad = int(capacidad)
+        self.disponible = True
+
+    def validar(self, detalle):
+
+        personas = int(detalle)
+
+        if not 1 <= personas <= self.capacidad:
+            raise DatosInvalidosError(
+                "La capacidad del servicio fue excedida."
+            )
+
+    def calcular_costo(self, horas, impuesto=0, descuento=0):
+
+        if not self.disponible:
+            raise ServicioNoDisponibleError(
+                "Servicio no disponible."
+            )
+
+        horas = float(horas)
+        impuesto = float(impuesto)
+        descuento = float(descuento)
+
+        if horas <= 0:
+            raise DatosInvalidosError("Horas inválidas.")
+
+        if not 0 <= impuesto <= 1:
+            raise DatosInvalidosError("Impuesto inválido.")
+
+        if not 0 <= descuento <= 1:
+            raise DatosInvalidosError("Descuento inválido.")
+
+        return round(
+            self.tarifa * horas * (1 - descuento) * (1 + impuesto),
+            2
+        )
+
+
+# =========================================================
+# 7. PRUEBAS AUTOMATICAS
+# =========================================================
+
+def ejecutar_pruebas():
+
+    sistema = SistemaSoftwareFJ()
+
+    correctas = 0
+    fallidas = 0
+
+    cliente = ClientePrueba("C001", "Laura Gómez")
+    cliente2 = ClientePrueba("C002", "Carlos Pérez")
+
+    sala = ServicioPrueba(
+        "S001", "Sala principal", 50000, 12
+    )
+
+    equipo = ServicioPrueba(
+        "S002", "Proyector", 25000, 5
+    )
+
+    asesoria = ServicioPrueba(
+        "S003", "Asesoría informática", 80000, 10
+    )
+
+    def probar(nombre, accion, error_esperado=None):
+
+        nonlocal correctas, fallidas
+
+        try:
+
+            accion()
+
+        except Exception as error:
+
+            if (
+                error_esperado is not None
+                and isinstance(error, error_esperado)
+            ):
+
+                correctas += 1
+                print(nombre, "- ERROR CONTROLADO")
+
+            else:
+
+                fallidas += 1
+                print(nombre, "- FALLÓ:", error)
+
+                registrar_error(
+                    f"Prueba fallida: {nombre}"
+                )
+
+        else:
+
+            if error_esperado is not None:
+
+                fallidas += 1
+                print(nombre, "- DEBIÓ GENERAR ERROR")
+
+            else:
+
+                correctas += 1
+                print(nombre, "- CORRECTO")
+
+        finally:
+
+            registrar_evento(
+                f"Finalizó prueba: {nombre}"
+            )
+
+    print("\n========== PRUEBAS SOFTWARE FJ ==========\n")
+
+    # 1
+    probar(
+        "Registrar primer cliente",
+        lambda: sistema.registrar_cliente(cliente)
+    )
+
+    # 2
+    probar(
+        "Registrar segundo cliente",
+        lambda: sistema.registrar_cliente(cliente2)
+    )
+
+    # 3
+    probar(
+        "Registrar sala",
+        lambda: sistema.registrar_servicio(sala)
+    )
+
+    # 4
+    probar(
+        "Registrar equipo",
+        lambda: sistema.registrar_servicio(equipo)
+    )
+
+    # 5
+    probar(
+        "Registrar asesoría",
+        lambda: sistema.registrar_servicio(asesoria)
+    )
+
+    # 6
+    probar(
+        "Rechazar cliente duplicado",
+        lambda: sistema.registrar_cliente(cliente),
+        RegistroDuplicadoError
+    )
+
+    # 7
+    probar(
+        "Rechazar servicio duplicado",
+        lambda: sistema.registrar_servicio(sala),
+        RegistroDuplicadoError
+    )
+
+    # 8
+    probar(
+        "Crear reserva válida",
+        lambda: sistema.crear_reserva(
+            "R001", "C001", "S001", 2, 8
+        )
+    )
+
+    # 9
+    probar(
+        "Rechazar duración negativa",
+        lambda: sistema.crear_reserva(
+            "R002", "C001", "S001", -2, 3
+        ),
+        ReservaInvalidaError
+    )
+
+    # 10
+    probar(
+        "Rechazar cliente inexistente",
+        lambda: sistema.crear_reserva(
+            "R003", "C999", "S001", 1, 2
+        ),
+        RegistroNoEncontradoError
+    )
+
+    # 11
+    probar(
+        "Rechazar exceso de capacidad",
+        lambda: sistema.crear_reserva(
+            "R004", "C001", "S001", 1, 20
+        ),
+        DatosInvalidosError
+    )
+
+    # 12
+    probar(
+        "Confirmar reserva",
+        lambda: sistema.buscar_reserva("R001").confirmar()
+    )
+
+    # 13
+    probar(
+        "Procesar reserva y calcular costo",
+        lambda: sistema.buscar_reserva("R001").procesar(
+            0.19, 0.10
+        )
+    )
+
+    # 14
+    probar(
+        "Rechazar cancelación de reserva procesada",
+        lambda: sistema.buscar_reserva("R001").cancelar(),
+        OperacionNoPermitidaError
+    )
+
+    # 15
+    probar(
+        "Rechazar reserva duplicada",
+        lambda: sistema.crear_reserva(
+            "R001", "C001", "S001", 1, 5
+        ),
+        RegistroDuplicadoError
+    )
+
+    # 16
+    reserva2 = sistema.crear_reserva(
+        "R005", "C002", "S003", 1, 5
+    )
+
+    asesoria.disponible = False
+
+    probar(
+        "Rechazar servicio no disponible",
+        reserva2.confirmar,
+        ServicioNoDisponibleError
+    )
+
+    asesoria.disponible = True
+
+    print("\n========== RESULTADOS ==========")
+
+    print("Pruebas correctas:", correctas)
+    print("Pruebas fallidas:", fallidas)
+    print("Total:", correctas + fallidas)
+
+    registrar_evento(
+        f"Finalizaron las pruebas: {correctas} correctas, "
+        f"{fallidas} fallidas."
+    )
+
+
+# =========================================================
+# 8. EJECUCION PRINCIPAL
+# =========================================================
+
+if __name__ == "__main__":
+
+    print("=" * 55)
+    print("SOFTWARE FJ - INTEGRANTE 3")
+    print("GESTION DE RESERVAS Y CONTROL DE ERRORES")
+    print("=" * 55)
+
+    ejecutar_pruebas()
+
+    print("\nArchivo de eventos creado: logs.txt")
+    print("Fin de las pruebas del Integrante 3.")
