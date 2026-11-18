@@ -294,6 +294,201 @@ Cada clase implementará sus propios cálculos de costos y validaciones, permiti
 el uso de herencia, polimorfismo y métodos sobrescritos dentro del proyecto.
 """
 """
+
+# =========================================================
+# BLOQUE 2 - GESTION DE SERVICIOS
+# Intregrante 2 luiza Jhynnet torres delgado
+# =========================================================
+
+class ErrorServicio(Exception):
+    """Clase base para errores relacionados con servicios."""
+    pass
+
+
+class CostoInvalidoError(ErrorServicio):
+    """Error cuando el costo del servicio no es valido."""
+    pass
+
+
+class DuracionInvalidaError(ErrorServicio):
+    """Error cuando la duracion no es valida."""
+    pass
+
+
+class Servicio(ABC):
+    """
+    Clase abstracta que representa los servicios
+    ofrecidos por la empresa Software FJ.
+    """
+
+    def __init__(self, codigo, nombre, costo_base):
+        if not codigo or not codigo.strip():
+            raise ErrorServicio("El codigo del servicio es obligatorio.")
+
+        if not nombre or not nombre.strip():
+            raise ErrorServicio("El nombre del servicio es obligatorio.")
+
+        if not isinstance(costo_base, (int, float)) or isinstance(costo_base, bool) or costo_base <= 0:
+            raise CostoInvalidoError("El costo debe ser mayor que cero.")
+
+        self._codigo = codigo
+        self._nombre = nombre
+        self._costo_base = costo_base
+
+    @property
+    def codigo(self):
+        return self._codigo
+
+    @property
+    def nombre(self):
+        return self._nombre
+
+    @property
+    def costo_base(self):
+        return self._costo_base
+
+    @abstractmethod
+    def calcular_costo(self, cantidad):
+        pass
+
+    def mostrar_informacion(self):
+        print(f"Codigo: {self.codigo}")
+        print(f"Servicio: {self.nombre}")
+        print(f"Costo base: ${self.costo_base:,.2f}")
+
+
+# =========================================================
+# SERVICIO 1 - RESERVA DE SALAS
+# =========================================================
+
+class ReservaSala(Servicio):
+
+    def __init__(self, codigo, nombre, costo_base):
+        super().__init__(codigo, nombre, costo_base)
+
+    def calcular_costo(self, horas):
+        if not isinstance(horas, (int, float)) or isinstance(horas, bool) or horas <= 0:
+            raise DuracionInvalidaError(
+                "Las horas de reserva deben ser mayores que cero."
+            )
+
+        return self.costo_base * horas
+
+
+# =========================================================
+# SERVICIO 2 - ALQUILER DE EQUIPOS
+# =========================================================
+
+class AlquilerEquipo(Servicio):
+
+    def __init__(self, codigo, nombre, costo_base):
+        super().__init__(codigo, nombre, costo_base)
+
+    def calcular_costo(self, dias):
+        if not isinstance(dias, (int, float)) or isinstance(dias, bool) or dias <= 0:
+            raise DuracionInvalidaError(
+                "Los dias de alquiler deben ser mayores que cero."
+            )
+
+        return self.costo_base * dias
+
+
+# =========================================================
+# SERVICIO 3 - ASESORIA ESPECIALIZADA
+# =========================================================
+
+class AsesoriaEspecializada(Servicio):
+
+    def __init__(self, codigo, nombre, costo_base):
+        super().__init__(codigo, nombre, costo_base)
+
+    def calcular_costo(self, horas):
+        if not isinstance(horas, (int, float)) or isinstance(horas, bool) or horas <= 0:
+            raise DuracionInvalidaError(
+                "Las horas de asesoria deben ser mayores que cero."
+            )
+
+        return self.costo_base * horas
+
+
+# =========================================================
+# SIMULACIONES DEL BLOQUE 2
+# =========================================================
+
+print("\n==============================================")
+print("SIMULACIONES - GESTION DE SERVICIOS")
+print("==============================================")
+
+# OPERACION 6 - Reserva de sala exitosa
+try:
+    sala = ReservaSala("S001", "Sala de reuniones", 50000)
+    costo = sala.calcular_costo(3)
+
+    sala.mostrar_informacion()
+    print(f"Costo por 3 horas: ${costo:,.2f}")
+
+    logging.info("Reserva de sala simulada correctamente.")
+
+except ErrorServicio as e:
+    logging.error(f"Error en reserva de sala: {e}")
+    print("Error:", e)
+
+
+# OPERACION 7 - Alquiler de equipo exitoso
+try:
+    equipo = AlquilerEquipo("E001", "Proyector", 30000)
+    costo = equipo.calcular_costo(2)
+
+    equipo.mostrar_informacion()
+    print(f"Costo por 2 dias: ${costo:,.2f}")
+
+    logging.info("Alquiler de equipo simulado correctamente.")
+
+except ErrorServicio as e:
+    logging.error(f"Error en alquiler: {e}")
+    print("Error:", e)
+
+
+# OPERACION 8 - Asesoria especializada exitosa
+try:
+    asesoria = AsesoriaEspecializada(
+        "A001", "Asesoria de software", 80000
+    )
+
+    costo = asesoria.calcular_costo(2)
+
+    asesoria.mostrar_informacion()
+    print(f"Costo por 2 horas: ${costo:,.2f}")
+
+    logging.info("Asesoria simulada correctamente.")
+
+except ErrorServicio as e:
+    logging.error(f"Error en asesoria: {e}")
+    print("Error:", e)
+
+
+# OPERACION 9 - Duracion invalida
+try:
+    sala.calcular_costo(0)
+
+except DuracionInvalidaError as e:
+    logging.error(f"Duracion invalida: {e}")
+    print("Error:", e)
+
+
+# OPERACION 10 - Costo base invalido
+try:
+    servicio_invalido = ReservaSala(
+        "S002", "Sala de capacitacion", -50000
+    )
+
+except CostoInvalidoError as e:
+    logging.error(f"Costo invalido: {e}")
+    print("Error:", e)
+
+
+print("\nFinalizacion de pruebas del bloque 2.")
+
 =========================================================
 BLOQUE 3 - GESTIÓN DE RESERVAS Y CONTROL DE ERRORES
 =========================================================
