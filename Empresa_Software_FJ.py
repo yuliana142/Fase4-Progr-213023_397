@@ -324,7 +324,6 @@ del sistema mediante excepciones personalizadas y logs.
 
 No utiliza bases de datos ni librerías externas.
 """
-
 import logging
 
 
