@@ -293,7 +293,6 @@ La implementación incluye una clase abstracta Servicio y tres clases especializ
 Cada clase implementará sus propios cálculos de costos y validaciones, permitiendo demostrar
 el uso de herencia, polimorfismo y métodos sobrescritos dentro del proyecto.
 """
-"""
 
 # =========================================================
 # BLOQUE 2 - GESTION DE SERVICIOS
@@ -315,11 +314,9 @@ class DuracionInvalidaError(ErrorServicio):
     pass
 
 
+
 class Servicio(ABC):
-    """
-    Clase abstracta que representa los servicios
-    ofrecidos por la empresa Software FJ.
-    """
+    """Clase abstracta que representa los servicios ofrecidos por la empresa Software FJ."""
 
     def __init__(self, codigo, nombre, costo_base):
         if not codigo or not codigo.strip():
@@ -489,7 +486,7 @@ except CostoInvalidoError as e:
 
 print("\nFinalizacion de pruebas del bloque 2.")
 
-=========================================================
+"""=========================================================
 BLOQUE 3 - GESTIÓN DE RESERVAS Y CONTROL DE ERRORES
 =========================================================
 
