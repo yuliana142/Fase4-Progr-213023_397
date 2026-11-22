@@ -64,8 +64,7 @@ import re
 logging.basicConfig(
     filename="software_fj.log",
     level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s"
-)
+    format="%(asctime)s - %(levelname)s - %(message)s")
 
 # =========================================================
 # EXCEPCIONES PERSONALIZADAS
@@ -147,9 +146,7 @@ class Cliente(Entidad):
     def nombre(self, valor):
 
         if not valor.strip():
-            raise NombreInvalidoError(
-                "El nombre no puede estar vacío."
-            )
+            raise NombreInvalidoError("El nombre no puede estar vacío." )
 
         self._nombre = valor
 
@@ -163,9 +160,7 @@ class Cliente(Entidad):
         patron = r'^[\w\.-]+@[\w\.-]+\.\w+$'
 
         if not re.match(patron, valor):
-            raise CorreoInvalidoError(
-                "Formato de correo inválido."
-            )
+            raise CorreoInvalidoError("Formato de correo inválido.")
 
         self._correo = valor
 
@@ -177,9 +172,7 @@ class Cliente(Entidad):
     def telefono(self, valor):
 
         if not valor.isdigit():
-            raise TelefonoInvalidoError(
-                "El teléfono debe contener solo números."
-            )
+            raise TelefonoInvalidoError( "El teléfono debe contener solo números.")
 
         self._telefono = valor
 
@@ -213,8 +206,7 @@ try:
         "1001",
         "Yuliana Giraldo",
         "yuliana@gmail.com",
-        "3001234567"
-    )
+        "3001234567")
     cliente1.mostrar_informacion()
 
 except Exception as e:
@@ -227,8 +219,7 @@ try:
         "1002",
         "",
         "cliente@gmail.com",
-        "3111111111"
-    )
+        "3111111111")
 
 except Exception as e:
     logging.error(e)
@@ -240,8 +231,7 @@ try:
         "1003",
         "Carlos Lopez",
         "correo_incorrecto",
-        "3201234567"
-    )
+        "3201234567")
 
 except Exception as e:
     logging.error(e)
@@ -253,8 +243,7 @@ try:
         "1004",
         "Diana Rojas",
         "diana@gmail.com",
-        "telefono"
-    )
+        "telefono")
 
 except Exception as e:
     logging.error(e)
@@ -266,8 +255,7 @@ try:
         "1005",
         "Juan Pérez",
         "juan@gmail.com",
-        "3155555555"
-    )
+        "3155555555")
 
     cliente5.mostrar_informacion()
 
